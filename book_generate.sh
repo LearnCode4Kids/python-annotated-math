@@ -76,6 +76,7 @@ generate_aggregate_source() {
   rm -rf "$source_dir"
   mkdir -p "$source_dir"
   cp -R "$BOOKS_DIR" "$source_dir/books"
+  find "$source_dir/books" -type f -name '*.ipynb' -size 0 -delete
 
   site_template="$(site_template_for "$source_dir")"
   if [[ "$site_template" != "book-theme" ]]; then
@@ -163,7 +164,14 @@ build_site() {
   (
     cd "$source_dir"
     "${JB_CMD[@]}" build --html --force
-  )
+  ) || {
+    local status=$?
+    if [[ -f "$source_dir/_build/html/index.html" ]]; then
+      echo "Warning: jupyter-book exited with status $status after producing HTML; continuing." >&2
+    else
+      return "$status"
+    fi
+  }
 
   rm -rf "$output_dir"
   mkdir -p "$output_dir"
@@ -179,6 +187,7 @@ generate_single_book_source() {
   rm -rf "$source_dir"
   mkdir -p "$GENERATED_ROOT"
   cp -R "$book_dir" "$source_dir"
+  find "$source_dir" -type f -name '*.ipynb' -size 0 -delete
 
   site_template="$(site_template_for "$source_dir")"
 
