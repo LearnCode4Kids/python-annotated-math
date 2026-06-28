@@ -1,0 +1,9 @@
+reference/
+
+# Local build outputs
+_build/
+.jupyter-book-generated/
+
+# OS metadata
+.DS_Store
+**/.DS_Store
