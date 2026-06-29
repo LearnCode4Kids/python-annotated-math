@@ -84,6 +84,9 @@ generate_aggregate_source() {
   fi
 
   python3 - "$source_dir" "$site_template" "$ANNBOOK_BOOK_TITLE" "$ANNBOOK_BOOK_AUTHOR" <<'PY'
+import json
+import re
+import shutil
 from collections import defaultdict
 from pathlib import Path
 import sys
@@ -94,24 +97,65 @@ book_title = sys.argv[3]
 book_author = sys.argv[4]
 books_dir = source_dir / "books"
 
+lesson_name = re.compile(r"^(\d+)-(\d+)_")
+lesson_alias = re.compile(r"^(\d+)\.(\d+)\.ipynb$")
+
+for page in sorted(books_dir.rglob("*.ipynb")):
+    rel = page.relative_to(books_dir)
+    match = lesson_name.match(page.name)
+    if (
+        match
+        and len(rel.parts) >= 2
+        and not any(part.startswith((".", "_")) for part in rel.parts)
+    ):
+        alias = page.with_name(f"{int(match.group(1))}.{int(match.group(2))}.ipynb")
+        shutil.copy2(page, alias)
+
+def is_lesson_page(page: Path) -> bool:
+    rel = page.relative_to(books_dir)
+    return (
+        page.suffix.lower() == ".ipynb"
+        and len(rel.parts) >= 2
+        and not any(part.startswith((".", "_")) for part in rel.parts)
+        and lesson_alias.match(page.name) is not None
+    )
+
 pages = sorted(
-    p for p in books_dir.rglob("*")
-    if p.suffix.lower() in {".ipynb", ".md", ".rst"}
-    and not any(part.startswith((".", "_")) for part in p.relative_to(books_dir).parts)
+    (p for p in books_dir.rglob("*.ipynb") if is_lesson_page(p)),
+    key=lambda p: (
+        p.parent.relative_to(books_dir).as_posix(),
+        tuple(int(x) for x in lesson_alias.match(p.name).groups()),
+        p.name,
+    ),
 )
 
 if not pages:
-    raise SystemExit(f"No notebooks or markdown pages found under {books_dir}")
+    raise SystemExit(f"No lesson notebooks found under {books_dir}")
+
+def title_from_page(page: Path) -> str:
+    if page.suffix.lower() == ".ipynb":
+        data = json.loads(page.read_text(encoding="utf-8"))
+        for cell in data.get("cells", []):
+            if cell.get("cell_type") != "markdown":
+                continue
+            source = "".join(cell.get("source", []))
+            for line in source.splitlines():
+                if line.startswith("# "):
+                    return line[2:].strip()
+    for line in page.read_text(encoding="utf-8").splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return page.stem.replace("_", " ")
 
 groups = defaultdict(list)
 for page in pages:
-    rel_parent = page.parent.relative_to(books_dir)
-    groups[rel_parent.as_posix() if rel_parent.parts else "books"].append(page)
+    rel = page.relative_to(books_dir)
+    groups[rel.parts[0]].append(page)
 
 index_lines = [
     f"# {book_title} 目录",
     "",
-    "本页自动汇总 `books/` 目录下的课程 Notebook。左侧目录保留原始文件夹层次，便于同时浏览多个 annotated notebook。",
+    "本页按年级汇总课程 Notebook。左侧目录使用“年级 -> 小节”的两级结构，便于按教材顺序学习。",
     "",
 ]
 
@@ -119,7 +163,7 @@ for group_name in sorted(groups):
     index_lines.extend([f"## {group_name}", ""])
     for page in groups[group_name]:
         rel = page.relative_to(source_dir).as_posix()
-        index_lines.append(f"- [{page.stem}]({rel})")
+        index_lines.append(f"- [{title_from_page(page)}]({rel})")
     index_lines.append("")
 
 (source_dir / "index.md").write_text("\n".join(index_lines), encoding="utf-8")

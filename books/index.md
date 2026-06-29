@@ -1,5 +1,8 @@
 # Python Annotated Math
 
-这里用于放置 Python 与数学主题的 annotated notebook。
+这里按年级整理 Python 与数学主题的 annotated notebook。
 
-后续课程内容可以按主题放在 `books/` 下，`book_generate.sh` 会自动汇总 Markdown 与 Notebook 页面。
+## grade6
+
+- [1.1 有理数的引入](grade6/1-1_有理数的引入.ipynb)
+- [1.2 有理数的加法与减法](grade6/1-2_有理数的加法与减法.ipynb)
