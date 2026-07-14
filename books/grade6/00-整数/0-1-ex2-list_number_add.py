@@ -27,25 +27,24 @@ def add_lists(list1, list2):
         list[int]: 考虑进位后的结果列表。
     """
     
-    # Todo Begin
-    # Hint: 将列表变得一样长，短的前面补 0，然后按位相加，考虑进位。
-    max_len = max(len(list1), len(list2))
-    left = [0] * (max_len - len(list1)) + list1
-    right = [0] * (max_len - len(list2)) + list2
-    # Todo End
-
     result = []
     carry = 0
+    index1 = len(list1) - 1
+    index2 = len(list2) - 1
 
-    for index in range(max_len - 1, -1, -1):
-        digit_sum = left[index] + right[index] + carry
-        result.insert(0, digit_sum % 10)
+    while index1 >= 0 or index2 >= 0 or carry:
+        digit_sum = carry
+        if index1 >= 0:
+            digit_sum += list1[index1]
+            index1 -= 1
+        if index2 >= 0:
+            digit_sum += list2[index2]
+            index2 -= 1
+
+        result.append(digit_sum % 10)
         carry = digit_sum // 10
 
-    if carry > 0:
-        result.insert(0, carry)
-
-    return result
+    return result[::-1]
 
 c = add_lists(a, b)
 print(c)  # Output: [5, 3, 4]
